@@ -68,8 +68,10 @@ The widget exposes two options tunable from the bar editor:
 - The `+` icon → new session with the selected model.
 - The **Exports** button → opens the exports folder.
 - The model selector persists the last selection.
-- **Search box** (`/` to focus, or click): filters the list as you type by
-  matching the session title, the model id, or the provider name.
+- **Search box**: type while the panel is open — printable characters go
+  straight into the search box and filter the list as you type by matching the
+  session title, the model id, or the provider name. `Esc` clears the search
+  and returns to the list.
 - When there are more than ~7 sessions, the list scrolls (via the mouse wheel
   or by moving the keyboard cursor).
 - The action icons **appear on hover** over a session (or on keyboard
@@ -80,18 +82,17 @@ The widget exposes two options tunable from the bar editor:
   - **Trash** icon → deletes the session. If it is open, it warns that it is
     in use and lets you close and delete it; if closed, it only asks to confirm.
 - **Keyboard navigation** (with the panel focused):
-  - `↑`/`↓` or `k`/`j` → move the cursor between sessions and the header
-    controls (folder button on top, then `+`, then the model dropdown).
-  - `→`/`←` or `l`/`h` → focus a session's icons (export/delete).
+  - `↑`/`↓` → move the cursor between sessions and the header controls (folder
+    button on top, then `+`, then the model dropdown).
+  - `→`/`←` → focus a session's icons (export/delete).
   - `Enter` → activate (resume the session, run an action, open the model
     dropdown, or start a new session / open the exports folder).
-  - Inside the model dropdown: `Enter`/`↓` opens, `j`/`k` choose, `Enter` confirms
+  - Inside the model dropdown: `Enter`/`↓` opens, `↑`/`↓` choose, `Enter` confirms
     and closes the list.
-  - `d` or `Del` → open the delete dialog for the selected session.
+  - `Del` → open the delete dialog for the selected session.
   - In the confirmation dialog: `←`/`→` or `Tab` choose (Cancel/Delete),
     `Enter` confirms, `Esc` cancels.
-  - `r` → refresh data; `Esc` → close the panel.
-  - `/` → focus the search box (type to filter; `Esc` returns to the list).
+  - `Esc` → close the panel (or clear the search when the search box is active).
 - When deleting a session, its row shows **"Deleting…"** until the
   conversation disappears from the list.
 

@@ -332,7 +332,7 @@ Panel {
 
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
-        // Let the search field handle typing without the panel cursor hijacking keys.
+        // If the search field already has focus, let it handle everything.
         if (searchField.activeFocus) return
 
         // If the model dropdown popup is open, let that popup handle the keys.
@@ -345,22 +345,26 @@ Panel {
 
         if (event.key === Qt.Key_Escape) {
           root.close(); event.accepted = true
-        } else if (event.key === Qt.Key_Down || event.text === "j") {
+        } else if (event.key === Qt.Key_Down) {
           root.moveCursor(1); event.accepted = true
-        } else if (event.key === Qt.Key_Up || event.text === "k") {
+        } else if (event.key === Qt.Key_Up) {
           root.moveCursor(-1); event.accepted = true
-        } else if (event.key === Qt.Key_Right || event.text === "l") {
+        } else if (event.key === Qt.Key_Right) {
           root.moveCursorH(1); event.accepted = true
-        } else if (event.key === Qt.Key_Left || event.text === "h") {
+        } else if (event.key === Qt.Key_Left) {
           root.moveCursorH(-1); event.accepted = true
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
           root.activateCursor(); event.accepted = true
-        } else if (event.key === Qt.Key_Delete || event.text === "d") {
+        } else if (event.key === Qt.Key_Delete) {
           root.deleteSelected(); event.accepted = true
-        } else if (event.text === "r") {
-          root.refreshData(); event.accepted = true
-        } else if (event.text === "/") {
-          searchField.forceActiveFocus(); searchField.selectAll(); event.accepted = true
+        } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab ||
+                   event.key === Qt.Key_Backspace) {
+          event.accepted = false
+        } else if (event.text && event.text.length > 0) {
+          // Any printable character types straight into the search box.
+          searchField.forceActiveFocus()
+          searchField.insert(searchField.cursorPosition, event.text)
+          event.accepted = true
         }
       }
 
