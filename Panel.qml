@@ -513,7 +513,7 @@ Panel {
         ListView {
           id: sessionList
           width: parent.width
-          height: Math.min(root.sessionListContentHeight, root.maxVisibleRowsHeight)
+          height: Math.min(sessionList.contentHeight, root.maxVisibleRowsHeight)
           clip: true
           model: root.visibleSessions
           spacing: Style.space(2)
@@ -521,7 +521,6 @@ Panel {
 
           ScrollBar.vertical: ScrollBar {
             policy: ScrollBar.AsNeeded
-            visible: sessionList.contentHeight > sessionList.height
             width: Style.space(4)
           }
 
