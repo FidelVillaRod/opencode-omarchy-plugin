@@ -56,10 +56,18 @@ El widget expone dos opciones ajustables desde el editor de la barra:
 - Clic en una sesión → la abre en el escritorio activo y cierra el panel.
 - El icono `+` → nueva sesión con el modelo seleccionado.
 - El selector de modelo persiste la última selección.
-- Icono de **descarga** en una sesión → exporta la conversación a `~/Descargas/opencode/`
-  (Markdown + JSON) y abre la carpeta.
-- Icono de **papelera** en una sesión → elimina la sesión. Si está abierta, avisa
-  que está en uso y permite cerrarla y eliminarla; si está cerrada, solo confirma.
+- Los iconos de acción **aparecen al pasar el cursor** por una sesión (o al
+  seleccionarla con el teclado):
+  - Icono de **descarga** → exporta la conversación a `~/Descargas/opencode/`
+    (Markdown + JSON) y abre la carpeta.
+  - Icono de **papelera** → elimina la sesión. Si está abierta, avisa
+    que está en uso y permite cerrarla y eliminarla; si está cerrada, solo confirma.
+- **Navegación por teclado** (con el panel enfocado):
+  - `↑`/`↓` o `k`/`j` → mover el cursor entre sesiones.
+  - `→`/`←` o `l`/`h` → mover el foco a los iconos de acción (exportar/eliminar).
+  - `Enter` → activar (reanudar la sesión o ejecutar la acción enfocada).
+  - `d` o `Supr` → abrir el diálogo de eliminación de la sesión seleccionada.
+  - `r` → refrescar los datos; `Esc` → cerrar el panel.
 
 ## Estructura
 

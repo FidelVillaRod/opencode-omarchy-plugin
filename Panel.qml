@@ -30,6 +30,11 @@ Panel {
   property bool deleteDialogChecked: false
   property bool deleteDialogOpenMessage: false
 
+  property bool cursorActive: false
+  property int selectedIndex: -1
+  property int actionColumn: 0
+  property bool mouseActionHover: false
+
   readonly property int barContentWidth: Style.bar.iconFont + Style.space(5)
   readonly property int barSlot: barContentWidth + Style.space(10)
   implicitWidth: bar && bar.vertical ? (bar ? bar.barSize : Style.bar.sizeHorizontal) : barSlot
@@ -171,6 +176,49 @@ Panel {
     }
   }
 
+  function sessionCount() {
+    return root.sessions ? root.sessions.length : 0
+  }
+
+  function clampIndex(i) {
+    var max = sessionCount() - 1
+    if (max < 0) return -1
+    return Math.max(0, Math.min(i, max))
+  }
+
+  function moveCursor(delta) {
+    if (!root.cursorActive) { root.cursorActive = true; root.selectedIndex = sessionCount() > 0 ? 0 : -1; return }
+    if (root.actionColumn !== 0) { root.actionColumn = 0; return }
+    if (sessionCount() === 0) return
+    root.selectedIndex = clampIndex(root.selectedIndex + delta)
+  }
+
+  function moveCursorH(delta) {
+    if (!root.cursorActive || root.selectedIndex < 0) return
+    root.actionColumn = delta > 0
+      ? (root.actionColumn === 2 ? 2 : root.actionColumn + 1)
+      : (root.actionColumn === 0 ? 0 : root.actionColumn - 1)
+  }
+
+  function activateCursor() {
+    if (!root.cursorActive || root.selectedIndex < 0) return
+    var row = root.sessions[root.selectedIndex]
+    if (!row) return
+    if (root.actionColumn === 1) {
+      root.exportSession(row.id)
+    } else if (root.actionColumn === 2) {
+      root.confirmDelete(row.id, row.title)
+    } else {
+      root.resumeSession(row.id)
+    }
+  }
+
+  function deleteSelected() {
+    if (!root.cursorActive || root.selectedIndex < 0) return
+    var row = root.sessions[root.selectedIndex]
+    if (row) root.confirmDelete(row.id, row.title)
+  }
+
   KeyboardPanel {
     id: panel
     anchorItem: button
@@ -184,6 +232,12 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      onMoveRequested: function(dx, dy) {
+        if (dy !== 0) root.moveCursor(dy)
+        else if (dx !== 0) root.moveCursorH(dx)
+      }
+      onActivateRequested: root.activateCursor()
+      onDeleteRequested: root.deleteSelected()
       onCloseRequested: root.close()
       onTextKey: function(t) {
         if (t === "r") root.refreshData()
@@ -253,69 +307,110 @@ Panel {
 
         Repeater {
           model: root.sessions
-          delegate: Rectangle {
+          delegate: CursorSurface {
+            id: row
+            required property var modelData
+            required property int index
+
             width: parent.width
-            height: sessionCol.implicitHeight + Style.space(8)
+            implicitHeight: rowContent.implicitHeight + Style.space(8)
             radius: Style.cornerRadius
-            color: Color.popups.background
+            foreground: root.foreground
+            fill: root.cursorActive
+              ? Style.hoverFillFor(root.foreground, Color.accent)
+              : Color.popups.background
+            currentFill: Style.selectedFillFor(root.foreground, Color.accent)
+            hasCursor: root.cursorActive && root.selectedIndex === index && root.actionColumn === 0
 
-            Column {
-              id: sessionCol
-              anchors.fill: parent
-              anchors.margins: Style.space(4)
-              anchors.rightMargin: Style.space(4) + actionRow.width
-              spacing: Style.space(2)
-
-              Text {
-                text: modelData.title || "Untitled"
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
-                color: root.foreground
-                elide: Text.ElideRight
-                width: parent.width
-              }
-
-              Text {
-                text: (modelData.model || "") + " · " + root.formatTokens(modelData.total_tokens) + " tokens"
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                color: Qt.darker(root.foreground, 1.5)
-              }
-            }
+            readonly property bool showActions: rowMouse.containsMouse ||
+              root.mouseActionHover || (root.cursorActive && root.selectedIndex === index)
 
             MouseArea {
+              id: rowMouse
               anchors.fill: parent
+              hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
+              onContainsMouseChanged: function(on) {
+                if (on) {
+                  root.cursorActive = true
+                  root.selectedIndex = index
+                  root.actionColumn = 0
+                }
+              }
               onClicked: {
                 root.resumeSession(modelData.id)
               }
             }
 
             Row {
-              id: actionRow
-              z: 10
+              id: rowContent
+              z: 1
+              anchors.left: parent.left
               anchors.right: parent.right
-              anchors.rightMargin: Style.space(4)
               anchors.verticalCenter: parent.verticalCenter
+              anchors.leftMargin: Style.space(4)
+              anchors.rightMargin: Style.space(4)
               spacing: Style.space(2)
 
-              PanelActionButton {
-                iconText: "\ueb3b"
-                tooltipText: "Exportar conversación"
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                size: Style.space(24)
-                onClicked: root.exportSession(modelData.id)
+              Column {
+                id: infoCol
+                width: parent.width - (actionRow.visible ? actionRow.width + parent.spacing : 0)
+                spacing: Style.space(2)
+
+                Text {
+                  width: parent.width
+                  text: modelData.title || "Untitled"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  color: root.foreground
+                  elide: Text.ElideRight
+                }
+
+                Text {
+                  width: parent.width
+                  text: (modelData.model || "") + " · " + root.formatTokens(modelData.total_tokens) + " tokens"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  color: Qt.darker(root.foreground, 1.5)
+                  elide: Text.ElideRight
+                }
               }
 
-              PanelActionButton {
-                iconText: "\uf1f8"
-                tooltipText: "Eliminar sesión"
-                foreground: root.foreground
-                hoverColor: Color.urgent
-                fontFamily: root.fontFamily
-                size: Style.space(24)
-                onClicked: root.confirmDelete(modelData.id, modelData.title)
+              Row {
+                id: actionRow
+                visible: row.showActions
+                spacing: Style.space(1)
+
+                PanelActionButton {
+                  iconText: "\uf019"
+                  tooltipText: "Exportar conversación"
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                  size: Style.space(24)
+                  hasCursor: root.cursorActive && root.selectedIndex === index && root.actionColumn === 1
+                  onHovered: function(on) {
+                    root.mouseActionHover = on
+                    if (on) { root.cursorActive = true; root.selectedIndex = index; root.actionColumn = 1 }
+                    else if (rowMouse.containsMouse) root.actionColumn = 0
+                  }
+                  onClicked: root.exportSession(modelData.id)
+                }
+
+                PanelActionButton {
+                  iconText: "\uf2ed"
+                  tooltipText: "Eliminar sesión"
+                  foreground: root.foreground
+                  hoverColor: Color.urgent
+                  fontFamily: root.fontFamily
+                  size: Style.space(24)
+                  hasCursor: root.cursorActive && root.selectedIndex === index && root.actionColumn === 2
+                  onHovered: function(on) {
+                    root.mouseActionHover = on
+                    if (on) { root.cursorActive = true; root.selectedIndex = index; root.actionColumn = 2 }
+                    else if (rowMouse.containsMouse) root.actionColumn = 0
+                  }
+                  onClicked: root.confirmDelete(modelData.id, modelData.title)
+                }
               }
             }
           }
@@ -346,9 +441,7 @@ Panel {
       background: Color.popups.background
       fontFamily: root.fontFamily
       onCanceled: root.cancelDelete()
-      onConfirmed: {
-        if (root.deleteDialogChecked) root.runDelete()
-      }
+      onConfirmed: root.runDelete()
     }
   }
 }
