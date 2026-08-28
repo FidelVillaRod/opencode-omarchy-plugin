@@ -53,6 +53,8 @@ Panel {
     function refresh() { root.refreshData() }
   }
 
+  onOpenedChanged: if (opened) root.refreshData()
+
   function refreshData() {
     collector.running = true
   }
@@ -66,6 +68,16 @@ Panel {
           var data = JSON.parse(line)
           if (data.ok) {
             root.sessions = data.sessions || []
+            // "Eliminando…" se mantiene hasta que la sesión realmente
+            // desaparezca de la lista.
+            if (root.deletingId) {
+              var stillThere = false
+              var list = root.sessions
+              for (var s = 0; s < list.length; s++) {
+                if (list[s].id === root.deletingId) { stillThere = true; break }
+              }
+              if (!stillThere) root.deletingId = ""
+            }
             root.models = data.models || []
             root.availableModels = data.available_models || []
             root.lastModel = data.last_model ? (data.last_model.full || "") : ""
@@ -107,10 +119,7 @@ Panel {
   Process {
     id: deleteProc
     command: ["true"]
-    onExited: {
-      root.deletingId = ""
-      root.refreshData()
-    }
+    onExited: root.refreshData()
   }
 
   Timer {
@@ -201,20 +210,25 @@ Panel {
     root.keyboardNavigation = true
     if (!root.cursorActive) {
       root.cursorActive = true
-      root.selectedIndex = sessionCount() > 0 ? 0 : -1
-      root.headerSubIndex = 0
+      // Cabecera: 1 = botón "+", 0 = selector de modelo.
+      root.headerSubIndex = 1
+      root.selectedIndex = -1
       root.actionColumn = 0
       return
     }
-    // Cabecera: subir/bajar a la primera sesión (o quedarse).
+    // Cabecera (botón "+" arriba, selector abajo).
     if (root.selectedIndex === -1) {
-      if (delta > 0) {
-        root.selectedIndex = sessionCount() > 0 ? 0 : -1
-        root.actionColumn = 0
+      if (delta < 0) {
+        // Subir del selector al botón "+".
+        if (root.headerSubIndex === 0) root.headerSubIndex = 1
+      } else {
+        // Bajar: del "+" al selector, y del selector a la primera sesión.
+        if (root.headerSubIndex === 1) root.headerSubIndex = 0
+        else { root.selectedIndex = sessionCount() > 0 ? 0 : -1; root.actionColumn = 0; root.headerSubIndex = 0 }
       }
       return
     }
-    // Última sesión hacia arriba → cabecera.
+    // Primera sesión hacia arriba → selector de modelo.
     if (delta < 0 && root.selectedIndex === 0) {
       root.selectedIndex = -1
       root.headerSubIndex = 0
@@ -228,11 +242,7 @@ Panel {
 
   function moveCursorH(delta) {
     if (!root.cursorActive || root.selectedIndex < 0) return
-    if (root.selectedIndex === -1) {
-      // En la cabecera, izquierda/derecha alterna dropdown <-> botón "+".
-      root.headerSubIndex = delta > 0 ? 1 : 0
-      return
-    }
+    if (root.selectedIndex === -1) return
     root.keyboardNavigation = true
     root.actionColumn = delta > 0
       ? (root.actionColumn === 2 ? 2 : root.actionColumn + 1)
@@ -356,7 +366,13 @@ Panel {
               return opts
             }
             value: root.selectedModel
-            onChanged: function(v) { root.selectedModel = v }
+            onPopupOpenChanged: if (!popupOpen) Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+            onChanged: function(v) {
+              root.selectedModel = v
+              // Al elegir con el teclado dentro del desplegable, devolver el
+              // foco al catcher para que el cursor del panel siga navegando.
+              Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+            }
             hasCursor: root.selectedIndex === -1 && root.headerSubIndex === 0
             onHovered: function(on) {
               if (on) {
@@ -418,9 +434,13 @@ Panel {
               root.mouseActionHoverIndex === index ||
               (root.keyboardNavigation && root.cursorActive && root.selectedIndex === index)
 
+            // Espacio que siempre reservan los iconos de acción (exportar + eliminar).
+            readonly property real actionWidth: Style.space(24) * 2 + Style.space(1)
+
             MouseArea {
               id: rowMouse
               anchors.fill: parent
+              anchors.rightMargin: row.actionWidth + Style.space(4)
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               onContainsMouseChanged: function(on) {
@@ -450,7 +470,7 @@ Panel {
 
               Column {
                 id: infoCol
-                width: parent.width - actionRow.width - parent.spacing
+                width: parent.width - row.actionWidth - parent.spacing
                 spacing: Style.space(2)
 
                 Text {
@@ -477,9 +497,9 @@ Panel {
               Row {
                 id: actionRow
                 spacing: Style.space(1)
-                enabled: row.showActions
+                visible: row.showActions
                 opacity: row.showActions ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 100 } }
+                Behavior on opacity { NumberAnimation { duration: 80 } }
 
                 PanelActionButton {
                   iconText: "\uf019"
@@ -539,7 +559,7 @@ Panel {
       cancelText: "Cancelar"
       foreground: root.foreground
       background: Color.popups.background
-      scrim: Util.alpha(Color.background, 0.82)
+      scrim: Qt.rgba(0, 0, 0, 0.55)
       selectedBackground: Util.alpha(root.foreground, 0.16)
       selectedText: Color.accent
       fontFamily: root.fontFamily
