@@ -33,7 +33,24 @@ except Exception:
 ")
 
 STAMP=$(date +%Y%m%d-%H%M%S)
-BASE="$OUT_DIR/${SLUG}_${STAMP}"
+
+# Build a descriptive base name: title_model_YYYYMMDD-HHMMSS.
+BASE=$(python3 -c "
+import json, re, sys
+try:
+    d=json.load(open('$TMP_JSON'))
+    info=d.get('info',{}) or {}
+    title=(info.get('title') or '').strip()
+    model=(info.get('model') or {}).get('id','') if isinstance(info.get('model'), dict) else ''
+    title=re.sub(r'[^A-Za-z0-9]+','_',title).strip('_')
+    model=re.sub(r'[^A-Za-z0-9]+','_',model).strip('_')
+    parts=[p for p in (title, model) if p]
+    base='_'.join(parts) if parts else (info.get('slug') or 'session')
+    print(base[:80])
+except Exception:
+    print('session')
+") 
+BASE="$OUT_DIR/${BASE}_${STAMP}"
 
 # Keep the raw JSON too.
 cp "$TMP_JSON" "$BASE.json"

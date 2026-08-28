@@ -37,6 +37,27 @@ Panel {
   property int mouseActionHoverIndex: -1
   property bool keyboardNavigation: false
   property string deletingId: ""
+  property string searchText: ""
+
+  readonly property real maxVisibleRowsHeight: Style.space(34) * 7
+
+  readonly property var visibleSessions: root.filterVerified(root.sessions || [], root.searchText)
+
+  function filterVerified(sessions, q) {
+    var out = []
+    for (var i = 0; i < sessions.length; i++) {
+      var s = sessions[i]
+      var query = (q || "").trim().toLowerCase()
+      var hit = !query
+      if (!hit) {
+        hit = (s.title || "").toLowerCase().indexOf(query) >= 0 ||
+              (s.model || "").toLowerCase().indexOf(query) >= 0 ||
+              (s.provider || "").toLowerCase().indexOf(query) >= 0
+      }
+      if (hit) out.push(s)
+    }
+    return out
+  }
 
   readonly property int barContentWidth: Style.bar.iconFont + Style.space(5)
   readonly property int barSlot: barContentWidth + Style.space(10)
@@ -54,6 +75,12 @@ Panel {
   }
 
   onOpenedChanged: if (opened) root.refreshData()
+
+  onSelectedIndexChanged: {
+    if (root.selectedIndex >= 0 && typeof sessionList !== 'undefined' && sessionList.count > 0) {
+      sessionList.positionViewAtIndex(root.selectedIndex, ListView.Center)
+    }
+  }
 
   function refreshData() {
     collector.running = true
@@ -202,7 +229,7 @@ Panel {
   }
 
   function sessionCount() {
-    return root.sessions ? root.sessions.length : 0
+    return root.visibleSessions ? root.visibleSessions.length : 0
   }
 
   function clampIndex(i) {
@@ -270,7 +297,7 @@ Panel {
       }
       return
     }
-    var row = root.sessions[root.selectedIndex]
+    var row = root.visibleSessions[root.selectedIndex]
     if (!row) return
     if (root.actionColumn === 1) {
       root.exportSession(row.id)
@@ -283,7 +310,7 @@ Panel {
 
   function deleteSelected() {
     if (!root.cursorActive || root.selectedIndex < 0) return
-    var row = root.sessions[root.selectedIndex]
+    var row = root.visibleSessions[root.selectedIndex]
     if (row) root.confirmDelete(row.id, row.title)
   }
 
@@ -305,7 +332,10 @@ Panel {
 
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
-        // Si el popup del dropdown está abierto, deja que ese popup maneje las teclas.
+        // Let the search field handle typing without the panel cursor hijacking keys.
+        if (searchField.activeFocus) return
+
+        // If the model dropdown popup is open, let that popup handle the keys.
         if (modelDropdown.popupOpen) return
 
         if (root.deleteDialogOpen) {
@@ -329,6 +359,8 @@ Panel {
           root.deleteSelected(); event.accepted = true
         } else if (event.text === "r") {
           root.refreshData(); event.accepted = true
+        } else if (event.text === "/") {
+          searchField.forceActiveFocus(); searchField.selectAll(); event.accepted = true
         }
       }
 
@@ -355,14 +387,37 @@ Panel {
           elide: Text.ElideRight
         }
 
+        TextField {
+          id: searchField
+          width: parent.width
+          placeholderText: "Search session title or model…"
+          accent: Color.accent
+          foreground: root.foreground
+          onTextChanged: root.searchText = text
+          horizontalPadding: Style.space(4)
+          verticalPadding: Style.space(3)
+
+          Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+              root.searchText = text = ""
+              keyCatcher.forceActiveFocus()
+              event.accepted = true
+            }
+          }
+        }
+
         Item {
           width: parent.width
+          height: Style.space(2)
+        }
+
+        Row {
+          width: parent.width
+          spacing: Style.space(6)
           height: Style.space(24)
 
           PanelActionButton {
             id: folderButton
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
             iconText: "\uf07b"
             tooltipText: "Open exports folder"
             foreground: root.foreground
@@ -379,6 +434,14 @@ Panel {
               }
             }
             onClicked: root.openExportsFolder()
+          }
+
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Exports"
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            color: Qt.darker(root.foreground, 1.5)
           }
         }
 
@@ -447,8 +510,21 @@ Panel {
           foreground: root.foreground
         }
 
-        Repeater {
-          model: root.sessions
+        ListView {
+          id: sessionList
+          width: parent.width
+          height: Math.min(root.sessionListContentHeight, root.maxVisibleRowsHeight)
+          clip: true
+          model: root.visibleSessions
+          spacing: Style.space(2)
+          boundsBehavior: Flickable.StopAtBounds
+
+          ScrollBar.vertical: ScrollBar {
+            policy: ScrollBar.AsNeeded
+            visible: sessionList.contentHeight > sessionList.height
+            width: Style.space(4)
+          }
+
           delegate: CursorSurface {
             id: row
             required property var modelData

@@ -66,12 +66,17 @@ The widget exposes two options tunable from the bar editor:
 
 - Click a session → opens it on the active workspace and closes the panel.
 - The `+` icon → new session with the selected model.
-- The folder icon → opens the exports folder.
+- The **Exports** button → opens the exports folder.
 - The model selector persists the last selection.
+- **Search box** (`/` to focus, or click): filters the list as you type by
+  matching the session title, the model id, or the provider name.
+- When there are more than ~7 sessions, the list scrolls (via the mouse wheel
+  or by moving the keyboard cursor).
 - The action icons **appear on hover** over a session (or on keyboard
   selection):
   - **Download** icon → exports the conversation to the downloads folder's
-    `opencode` subdirectory (Markdown + JSON) and opens that folder.
+    `opencode` subdirectory (Markdown + JSON) and opens that folder. The
+    exported files are named `<title>_<model>_YYYYMMDD-HHMMSS`.
   - **Trash** icon → deletes the session. If it is open, it warns that it is
     in use and lets you close and delete it; if closed, it only asks to confirm.
 - **Keyboard navigation** (with the panel focused):
@@ -86,6 +91,7 @@ The widget exposes two options tunable from the bar editor:
   - In the confirmation dialog: `←`/`→` or `Tab` choose (Cancel/Delete),
     `Enter` confirms, `Esc` cancels.
   - `r` → refresh data; `Esc` → close the panel.
+  - `/` → focus the search box (type to filter; `Esc` returns to the list).
 - When deleting a session, its row shows **"Deleting…"** until the
   conversation disappears from the list.
 
