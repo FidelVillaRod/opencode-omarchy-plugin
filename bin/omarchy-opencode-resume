@@ -1,0 +1,46 @@
+#!/bin/bash
+# Resume an opencode session in the existing opencode terminal window
+# (the org.omarchy.agent kitty instance), or launch one if none is running.
+# Usage: omarchy-opencode-resume <session-id>
+set -euo pipefail
+
+SESSION_ID=${1:?usage: omarchy-opencode-resume <session-id>}
+DB="${XDG_DATA_HOME:-$HOME/.local/share}/opencode/opencode.db"
+
+# 1. Session working directory from the opencode DB
+DIR=$(sqlite3 "$DB" "SELECT directory FROM session WHERE id='$SESSION_ID';" 2>/dev/null || true)
+[[ -d $DIR ]] || DIR="$HOME/Work"
+
+# 2. Find the opencode (agent) kitty window on the ACTIVE workspace, so the
+#    session opens where the user is working right now (not the first window
+#    found on some other workspace).
+ACTIVE_WS=$(hyprctl activeworkspace -j 2>/dev/null | jq -r '.id // empty')
+ADDR=""
+PID=""
+WIN=$(hyprctl clients -j 2>/dev/null | jq -r --arg ws "$ACTIVE_WS" \
+  'first(.[] | select(.class == "org.omarchy.agent" and (.workspace.id | tostring) == $ws)) | @base64 // empty')
+if [[ -n $WIN ]]; then
+  DEC=$(printf '%s' "$WIN" | base64 -d)
+  ADDR=$(jq -r '.address // empty' <<<"$DEC")
+  PID=$(jq -r '.pid // empty' <<<"$DEC")
+fi
+
+SOCK=""
+if [[ -n $PID ]]; then
+  SOCK="$XDG_RUNTIME_DIR/omarchy-kitty-$PID"
+fi
+
+# 3. Launch resume inside the existing kitty instance (new tab), or fall back
+#    to launching a fresh agent terminal.
+if [[ -S $SOCK ]]; then
+  kitten @ --to "unix:$SOCK" launch --type=tab --cwd "$DIR" opencode -s "$SESSION_ID" >/dev/null 2>&1 \
+    || omarchy-launch-tui --app-id=org.omarchy.agent opencode -s "$SESSION_ID"
+else
+  omarchy-launch-tui --app-id=org.omarchy.agent opencode -s "$SESSION_ID"
+fi
+
+# 4. Bring the opencode terminal window to front
+if [[ -n $ADDR ]]; then
+  hyprctl dispatch "hl.dsp.focus({ window = \"address:$ADDR\" })" >/dev/null 2>&1 \
+    || hyprctl dispatch focuswindow "address:$ADDR" >/dev/null 2>&1
+fi

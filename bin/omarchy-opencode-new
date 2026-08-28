@@ -1,0 +1,41 @@
+#!/bin/bash
+# Start a NEW opencode session in the existing agent terminal on the ACTIVE
+# workspace (or launch a fresh one there). Optionally pick a model.
+# Usage: omarchy-opencode-new [model (provider/model)]
+set -euo pipefail
+
+MODEL="${1:-}"
+
+ACTIVE_WS=$(hyprctl activeworkspace -j 2>/dev/null | jq -r '.id // empty')
+ADDR=""
+PID=""
+WIN=$(hyprctl clients -j 2>/dev/null | jq -r --arg ws "$ACTIVE_WS" \
+  'first(.[] | select(.class == "org.omarchy.agent" and (.workspace.id | tostring) == $ws)) | @base64 // empty')
+if [[ -n $WIN ]]; then
+  DEC=$(printf '%s' "$WIN" | base64 -d)
+  ADDR=$(jq -r '.address // empty' <<<"$DEC")
+  PID=$(jq -r '.pid // empty' <<<"$DEC")
+fi
+
+SOCK=""
+if [[ -n $PID ]]; then
+  SOCK="$XDG_RUNTIME_DIR/omarchy-kitty-$PID"
+fi
+
+if [[ -n $MODEL ]]; then
+  CMD=(opencode -m "$MODEL")
+else
+  CMD=(opencode)
+fi
+
+if [[ -S $SOCK ]]; then
+  kitten @ --to "unix:$SOCK" launch --type=tab --cwd "$HOME/Work" "${CMD[@]}" >/dev/null 2>&1 \
+    || omarchy-launch-tui --app-id=org.omarchy.agent "${CMD[@]}"
+else
+  omarchy-launch-tui --app-id=org.omarchy.agent "${CMD[@]}"
+fi
+
+if [[ -n $ADDR ]]; then
+  hyprctl dispatch "hl.dsp.focus({ window = \"address:$ADDR\" })" >/dev/null 2>&1 \
+    || hyprctl dispatch focuswindow "address:$ADDR" >/dev/null 2>&1
+fi
