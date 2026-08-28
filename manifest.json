@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "fidelv.opencode",
+  "name": "OpenCode",
+  "version": "1.0.0",
+  "author": "Fidel",
+  "description": "OpenCode sessions, tokens, and model selector in a native Omarchy bar panel.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "OpenCode",
+    "description": "View and manage OpenCode conversations with token usage and model selection.",
+    "category": "AI",
+    "allowMultiple": false,
+    "defaults": {
+      "refreshIntervalSec": 300,
+      "maxSessions": 20
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 30,
+        "max": 3600,
+        "step": 30,
+        "defaultValue": 300
+      },
+      {
+        "key": "maxSessions",
+        "type": "integer",
+        "label": "Max sessions to show",
+        "min": 5,
+        "max": 50,
+        "step": 5,
+        "defaultValue": 20
+      }
+    ]
+  }
+}
