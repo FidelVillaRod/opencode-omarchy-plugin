@@ -33,7 +33,8 @@ Panel {
   property bool cursorActive: false
   property int selectedIndex: -1
   property int actionColumn: 0
-  property bool mouseActionHover: false
+  property int mouseActionHoverIndex: -1
+  property bool keyboardNavigation: false
 
   readonly property int barContentWidth: Style.bar.iconFont + Style.space(5)
   readonly property int barSlot: barContentWidth + Style.space(10)
@@ -101,6 +102,12 @@ Panel {
     }
   }
 
+  Process {
+    id: deleteProc
+    command: ["true"]
+    onExited: root.refreshData()
+  }
+
   Timer {
     id: refreshTimer
     interval: 300000
@@ -162,12 +169,10 @@ Panel {
   }
 
   function runDelete() {
-    if (root.bar && root.bar.run) {
-      root.bar.run("omarchy-opencode-delete " + Util.shellQuote(root.pendingDeleteId))
-    }
-    root.pendingDeleteId = ""
     root.deleteDialogOpen = false
-    root.refreshData()
+    deleteProc.command = ["omarchy-opencode-delete", root.pendingDeleteId]
+    root.pendingDeleteId = ""
+    deleteProc.running = true
   }
 
   function exportSession(id) {
@@ -187,6 +192,7 @@ Panel {
   }
 
   function moveCursor(delta) {
+    root.keyboardNavigation = true
     if (!root.cursorActive) { root.cursorActive = true; root.selectedIndex = sessionCount() > 0 ? 0 : -1; return }
     if (root.actionColumn !== 0) { root.actionColumn = 0; return }
     if (sessionCount() === 0) return
@@ -195,6 +201,7 @@ Panel {
 
   function moveCursorH(delta) {
     if (!root.cursorActive || root.selectedIndex < 0) return
+    root.keyboardNavigation = true
     root.actionColumn = delta > 0
       ? (root.actionColumn === 2 ? 2 : root.actionColumn + 1)
       : (root.actionColumn === 0 ? 0 : root.actionColumn - 1)
@@ -202,6 +209,7 @@ Panel {
 
   function activateCursor() {
     if (!root.cursorActive || root.selectedIndex < 0) return
+    root.keyboardNavigation = true
     var row = root.sessions[root.selectedIndex]
     if (!row) return
     if (root.actionColumn === 1) {
@@ -229,18 +237,36 @@ Panel {
     contentWidth: panel.fittedContentWidth(Style.space(400))
     contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
-    PanelKeyCatcher {
+    Item {
       id: keyCatcher
       anchors.fill: parent
-      onMoveRequested: function(dx, dy) {
-        if (dy !== 0) root.moveCursor(dy)
-        else if (dx !== 0) root.moveCursorH(dx)
-      }
-      onActivateRequested: root.activateCursor()
-      onDeleteRequested: root.deleteSelected()
-      onCloseRequested: root.close()
-      onTextKey: function(t) {
-        if (t === "r") root.refreshData()
+      z: root.deleteDialogOpen ? 20 : 0
+      focus: true
+
+      Keys.priority: Keys.BeforeItem
+      Keys.onPressed: function(event) {
+        if (root.deleteDialogOpen) {
+          if (deleteConfirm.handleKey(event)) event.accepted = true
+          return
+        }
+
+        if (event.key === Qt.Key_Escape) {
+          root.close(); event.accepted = true
+        } else if (event.key === Qt.Key_Down || event.text === "j") {
+          root.moveCursor(1); event.accepted = true
+        } else if (event.key === Qt.Key_Up || event.text === "k") {
+          root.moveCursor(-1); event.accepted = true
+        } else if (event.key === Qt.Key_Right || event.text === "l") {
+          root.moveCursorH(1); event.accepted = true
+        } else if (event.key === Qt.Key_Left || event.text === "h") {
+          root.moveCursorH(-1); event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+          root.activateCursor(); event.accepted = true
+        } else if (event.key === Qt.Key_Delete || event.text === "d") {
+          root.deleteSelected(); event.accepted = true
+        } else if (event.text === "r") {
+          root.refreshData(); event.accepted = true
+        }
       }
 
       Column {
@@ -320,10 +346,13 @@ Panel {
               ? Style.hoverFillFor(root.foreground, Color.accent)
               : Color.popups.background
             currentFill: Style.selectedFillFor(root.foreground, Color.accent)
-            hasCursor: root.cursorActive && root.selectedIndex === index && root.actionColumn === 0
+            hasCursor: root.cursorActive && root.selectedIndex === index &&
+              (root.keyboardNavigation || rowMouse.containsMouse || root.mouseActionHoverIndex === index) &&
+              root.actionColumn === 0
 
             readonly property bool showActions: rowMouse.containsMouse ||
-              root.mouseActionHover || (root.cursorActive && root.selectedIndex === index)
+              root.mouseActionHoverIndex === index ||
+              (root.keyboardNavigation && root.cursorActive && root.selectedIndex === index)
 
             MouseArea {
               id: rowMouse
@@ -332,9 +361,12 @@ Panel {
               cursorShape: Qt.PointingHandCursor
               onContainsMouseChanged: function(on) {
                 if (on) {
+                  root.keyboardNavigation = false
                   root.cursorActive = true
                   root.selectedIndex = index
                   root.actionColumn = 0
+                } else {
+                  root.mouseActionHoverIndex = -1
                 }
               }
               onClicked: {
@@ -389,15 +421,15 @@ Panel {
                   size: Style.space(24)
                   hasCursor: root.cursorActive && root.selectedIndex === index && root.actionColumn === 1
                   onHovered: function(on) {
-                    root.mouseActionHover = on
-                    if (on) { root.cursorActive = true; root.selectedIndex = index; root.actionColumn = 1 }
+                    root.mouseActionHoverIndex = on ? index : -1
+                    if (on) { root.keyboardNavigation = false; root.cursorActive = true; root.selectedIndex = index; root.actionColumn = 1 }
                     else if (rowMouse.containsMouse) root.actionColumn = 0
                   }
                   onClicked: root.exportSession(modelData.id)
                 }
 
                 PanelActionButton {
-                  iconText: "\uf2ed"
+                  iconText: "\uf1f8"
                   tooltipText: "Eliminar sesión"
                   foreground: root.foreground
                   hoverColor: Color.urgent
@@ -405,8 +437,8 @@ Panel {
                   size: Style.space(24)
                   hasCursor: root.cursorActive && root.selectedIndex === index && root.actionColumn === 2
                   onHovered: function(on) {
-                    root.mouseActionHover = on
-                    if (on) { root.cursorActive = true; root.selectedIndex = index; root.actionColumn = 2 }
+                    root.mouseActionHoverIndex = on ? index : -1
+                    if (on) { root.keyboardNavigation = false; root.cursorActive = true; root.selectedIndex = index; root.actionColumn = 2 }
                     else if (rowMouse.containsMouse) root.actionColumn = 0
                   }
                   onClicked: root.confirmDelete(modelData.id, modelData.title)
