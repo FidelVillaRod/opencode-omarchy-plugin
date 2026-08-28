@@ -63,11 +63,18 @@ El widget expone dos opciones ajustables desde el editor de la barra:
   - Icono de **papelera** → elimina la sesión. Si está abierta, avisa
     que está en uso y permite cerrarla y eliminarla; si está cerrada, solo confirma.
 - **Navegación por teclado** (con el panel enfocado):
-  - `↑`/`↓` o `k`/`j` → mover el cursor entre sesiones.
-  - `→`/`←` o `l`/`h` → mover el foco a los iconos de acción (exportar/eliminar).
-  - `Enter` → activar (reanudar la sesión o ejecutar la acción enfocada).
+  - `↑`/`↓` o `k`/`j` → mover el cursor entre sesiones y la cabecera.
+  - `→`/`←` o `l`/`h` → enfocar los iconos de una sesión (exportar/eliminar);
+    en la cabecera, alternar entre el selector de modelo y el botón `+`.
+  - `Enter` → activar (reanudar la sesión, ejecutar la acción, abrir el selector
+    de modelo o crear una sesión nueva).
+  - Dentro del selector de modelo: `Enter`/`↓` abre, `j`/`k` eligen, `Enter` confirma.
   - `d` o `Supr` → abrir el diálogo de eliminación de la sesión seleccionada.
+  - En el diálogo de confirmación: `←`/`→` o `Tab` eligen (Cancelar/Eliminar),
+    `Enter` confirma, `Esc` cancela.
   - `r` → refrescar los datos; `Esc` → cerrar el panel.
+- Al eliminar una sesión, su fila muestra **"Eliminando…"** hasta que termina
+  el borrado y la lista se actualiza sola.
 
 ## Estructura
 

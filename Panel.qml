@@ -33,8 +33,10 @@ Panel {
   property bool cursorActive: false
   property int selectedIndex: -1
   property int actionColumn: 0
+  property int headerSubIndex: 0
   property int mouseActionHoverIndex: -1
   property bool keyboardNavigation: false
+  property string deletingId: ""
 
   readonly property int barContentWidth: Style.bar.iconFont + Style.space(5)
   readonly property int barSlot: barContentWidth + Style.space(10)
@@ -105,7 +107,10 @@ Panel {
   Process {
     id: deleteProc
     command: ["true"]
-    onExited: root.refreshData()
+    onExited: {
+      root.deletingId = ""
+      root.refreshData()
+    }
   }
 
   Timer {
@@ -170,6 +175,7 @@ Panel {
 
   function runDelete() {
     root.deleteDialogOpen = false
+    root.deletingId = root.pendingDeleteId
     deleteProc.command = ["omarchy-opencode-delete", root.pendingDeleteId]
     root.pendingDeleteId = ""
     deleteProc.running = true
@@ -193,7 +199,28 @@ Panel {
 
   function moveCursor(delta) {
     root.keyboardNavigation = true
-    if (!root.cursorActive) { root.cursorActive = true; root.selectedIndex = sessionCount() > 0 ? 0 : -1; return }
+    if (!root.cursorActive) {
+      root.cursorActive = true
+      root.selectedIndex = sessionCount() > 0 ? 0 : -1
+      root.headerSubIndex = 0
+      root.actionColumn = 0
+      return
+    }
+    // Cabecera: subir/bajar a la primera sesión (o quedarse).
+    if (root.selectedIndex === -1) {
+      if (delta > 0) {
+        root.selectedIndex = sessionCount() > 0 ? 0 : -1
+        root.actionColumn = 0
+      }
+      return
+    }
+    // Última sesión hacia arriba → cabecera.
+    if (delta < 0 && root.selectedIndex === 0) {
+      root.selectedIndex = -1
+      root.headerSubIndex = 0
+      root.actionColumn = 0
+      return
+    }
     if (root.actionColumn !== 0) { root.actionColumn = 0; return }
     if (sessionCount() === 0) return
     root.selectedIndex = clampIndex(root.selectedIndex + delta)
@@ -201,6 +228,11 @@ Panel {
 
   function moveCursorH(delta) {
     if (!root.cursorActive || root.selectedIndex < 0) return
+    if (root.selectedIndex === -1) {
+      // En la cabecera, izquierda/derecha alterna dropdown <-> botón "+".
+      root.headerSubIndex = delta > 0 ? 1 : 0
+      return
+    }
     root.keyboardNavigation = true
     root.actionColumn = delta > 0
       ? (root.actionColumn === 2 ? 2 : root.actionColumn + 1)
@@ -210,6 +242,15 @@ Panel {
   function activateCursor() {
     if (!root.cursorActive || root.selectedIndex < 0) return
     root.keyboardNavigation = true
+    if (root.selectedIndex === -1) {
+      if (root.headerSubIndex === 1) {
+        root.openNewSession()
+      } else {
+        modelDropdown.forceActiveFocus()
+        modelDropdown.open()
+      }
+      return
+    }
     var row = root.sessions[root.selectedIndex]
     if (!row) return
     if (root.actionColumn === 1) {
@@ -245,6 +286,9 @@ Panel {
 
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
+        // Si el popup del dropdown está abierto, deja que ese popup maneje las teclas.
+        if (modelDropdown.popupOpen) return
+
         if (root.deleteDialogOpen) {
           if (deleteConfirm.handleKey(event)) event.accepted = true
           return
@@ -313,7 +357,16 @@ Panel {
             }
             value: root.selectedModel
             onChanged: function(v) { root.selectedModel = v }
-            hasCursor: true
+            hasCursor: root.selectedIndex === -1 && root.headerSubIndex === 0
+            onHovered: function(on) {
+              if (on) {
+                root.keyboardNavigation = false
+                root.cursorActive = true
+                root.selectedIndex = -1
+                root.headerSubIndex = 0
+                root.actionColumn = 0
+              }
+            }
           }
 
           PanelActionButton {
@@ -321,7 +374,18 @@ Panel {
             iconText: ""
             tooltipText: "Nueva sesión" + (root.selectedModel ? " (" + (root.selectedModel.split("/").pop()) + ")" : "")
             foreground: root.foreground
+            hoverColor: Color.urgent
             fontFamily: root.fontFamily
+            hasCursor: root.selectedIndex === -1 && root.headerSubIndex === 1
+            onHovered: function(on) {
+              if (on) {
+                root.keyboardNavigation = false
+                root.cursorActive = true
+                root.selectedIndex = -1
+                root.headerSubIndex = 1
+                root.actionColumn = 0
+              }
+            }
             onClicked: root.openNewSession()
           }
         }
@@ -386,7 +450,7 @@ Panel {
 
               Column {
                 id: infoCol
-                width: parent.width - (actionRow.visible ? actionRow.width + parent.spacing : 0)
+                width: parent.width - actionRow.width - parent.spacing
                 spacing: Style.space(2)
 
                 Text {
@@ -400,7 +464,9 @@ Panel {
 
                 Text {
                   width: parent.width
-                  text: (modelData.model || "") + " · " + root.formatTokens(modelData.total_tokens) + " tokens"
+                  text: modelData.id === root.deletingId
+                    ? "Eliminando…"
+                    : (modelData.model || "") + " · " + root.formatTokens(modelData.total_tokens) + " tokens"
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
                   color: Qt.darker(root.foreground, 1.5)
@@ -410,8 +476,10 @@ Panel {
 
               Row {
                 id: actionRow
-                visible: row.showActions
                 spacing: Style.space(1)
+                enabled: row.showActions
+                opacity: row.showActions ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 100 } }
 
                 PanelActionButton {
                   iconText: "\uf019"
@@ -471,6 +539,9 @@ Panel {
       cancelText: "Cancelar"
       foreground: root.foreground
       background: Color.popups.background
+      scrim: Util.alpha(Color.background, 0.82)
+      selectedBackground: Util.alpha(root.foreground, 0.16)
+      selectedText: Color.accent
       fontFamily: root.fontFamily
       onCanceled: root.cancelDelete()
       onConfirmed: root.runDelete()
