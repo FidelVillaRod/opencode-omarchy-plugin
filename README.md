@@ -5,6 +5,9 @@ sessions from the desktop: lists active/recent sessions, shows token usage and
 daily cost, and lets you pick a model, start new sessions, export conversations
 and delete sessions.
 
+<img width="420" height="406" alt="image" src="https://github.com/user-attachments/assets/bb52fe91-6e1c-4ed0-82a5-2adb7f09b33e" />
+
+
 ## Features
 
 - **Session list**: click a session to resume it in an `org.omarchy.agent`
