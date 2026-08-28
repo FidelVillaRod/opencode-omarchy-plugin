@@ -7,9 +7,16 @@ set -euo pipefail
 SESSION_ID=${1:?usage: omarchy-opencode-resume <session-id>}
 DB="${XDG_DATA_HOME:-$HOME/.local/share}/opencode/opencode.db"
 
+# Only allow safe session ids (UUID / alphanumeric slug). Anything else is
+# rejected before it can reach a shell or SQL string, preventing injection.
+[[ $SESSION_ID =~ ^[A-Za-z0-9._-]+$ ]] || {
+  echo "invalid session id" >&2
+  exit 1
+}
+
 # 1. Session working directory from the opencode DB
 DIR=$(sqlite3 "$DB" "SELECT directory FROM session WHERE id='$SESSION_ID';" 2>/dev/null || true)
-[[ -d $DIR ]] || DIR="$HOME/Work"
+[[ -d $DIR ]] || DIR="$HOME"
 
 # 2. Find the opencode (agent) kitty window on the ACTIVE workspace, so the
 #    session opens where the user is working right now (not the first window

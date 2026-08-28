@@ -5,6 +5,10 @@
 set -euo pipefail
 
 MODEL="${1:-}"
+if [[ -n $MODEL && ! $MODEL =~ ^[A-Za-z0-9._/:+-]+$ ]]; then
+  echo "invalid model" >&2
+  exit 1
+fi
 
 ACTIVE_WS=$(hyprctl activeworkspace -j 2>/dev/null | jq -r '.id // empty')
 ADDR=""
@@ -29,7 +33,7 @@ else
 fi
 
 if [[ -S $SOCK ]]; then
-  kitten @ --to "unix:$SOCK" launch --type=tab --cwd "$HOME/Work" "${CMD[@]}" >/dev/null 2>&1 \
+  kitten @ --to "unix:$SOCK" launch --type=tab --cwd "$HOME" "${CMD[@]}" >/dev/null 2>&1 \
     || omarchy-launch-tui --app-id=org.omarchy.agent "${CMD[@]}"
 else
   omarchy-launch-tui --app-id=org.omarchy.agent "${CMD[@]}"

@@ -102,14 +102,16 @@ Panel {
   }
 
   function openNewSession() {
+    if (!root.bar || !root.bar.run) return
     var cmd = "omarchy-opencode-new"
-    if (root.selectedModel) cmd = cmd + " " + root.selectedModel
-    if (root.bar && root.bar.run) root.bar.run(cmd)
+    if (root.selectedModel) cmd = cmd + " " + Util.shellQuote(root.selectedModel)
+    root.bar.run(cmd)
     root.close()
   }
 
   function resumeSession(id) {
-    if (root.bar && root.bar.run) root.bar.run("omarchy-opencode-resume " + id)
+    if (!root.bar || !root.bar.run) return
+    root.bar.run("omarchy-opencode-resume " + Util.shellQuote(id))
     root.close()
   }
 
