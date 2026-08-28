@@ -1,0 +1,11 @@
+#!/bin/bash
+# Create the opencode exports folder (if needed) and open it in the default
+# file manager.
+# Usage: omarchy-opencode-exports
+set -euo pipefail
+
+OUT_DIR="${XDG_DOWNLOAD_DIR:-$HOME/Descargas}/opencode"
+mkdir -p "$OUT_DIR"
+
+xdg-open "$OUT_DIR" >/dev/null 2>&1 || \
+  hyprctl dispatch "exec xdg-open '$OUT_DIR'" >/dev/null 2>&1 || true

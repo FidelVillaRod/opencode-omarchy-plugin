@@ -1,37 +1,47 @@
 # OpenCode — Omarchy Bar Plugin
 
-Native Omarchy bar panel para gestionar sesiones de [OpenCode](https://opencode.ai) desde el escritorio: muestra sesiones activas/recientes, uso de tokens y costo del día, y permite elegir modelo y abrir nuevas sesiones.
+A native Omarchy bar panel to manage your [OpenCode](https://opencode.ai)
+sessions from the desktop: lists active/recent sessions, shows token usage and
+daily cost, and lets you pick a model, start new sessions, export conversations
+and delete sessions.
 
-## Características
+## Features
 
-- **Lista de sesiones**: haz clic en una sesión para reanudarla en un terminal `org.omarchy.agent` sobre el escritorio activo.
-- **Selector de modelo**: desplegable con los modelos disponibles (`opencode models`).
-- **Nueva sesión**: botón `+` que abre `opencode -m <modelo>` en el escritorio activo.
-- **Indicador diario**: sesiones, tokens y costo de hoy en el tooltip del panel.
-- **Activos vs. cerrados**: los directorios de sesión se comprueban para marcar qué sesiones siguen abiertas.
+- **Session list**: click a session to resume it in an `org.omarchy.agent`
+  terminal on the active workspace.
+- **Model selector**: dropdown with the available models (`opencode models`).
+- **New session**: `+` button that opens `opencode -m <model>` on the active
+  workspace.
+- **Exports folder**: folder button that opens the folder where conversations
+  are exported.
+- **Action icons**: per-session download (export) and delete buttons on hover
+  or keyboard selection.
+- **Daily indicator**: sessions, tokens and cost of today in the panel.
+- **Active vs. closed**: session directories are checked to mark which sessions
+  are still open.
 
-## Requisitos
+## Requirements
 
 - [Omarchy](https://omarchy.org) (Arch + Hyprland)
-- [OpenCode](https://opencode.ai) instalado y accesible como `opencode`
-- `python3` y `less`/`find` estándar
+- [OpenCode](https://opencode.ai) installed and reachable as `opencode`
+- `python3` and standard `less`/`find`
 
-## Instalación
+## Installation
 
-Con `omarchy plugin add` (recomendado):
+With `omarchy plugin add` (recommended):
 
 ```bash
-# 1. Instala el plugin desde git
+# 1. Install the plugin from git
 omarchy plugin add https://github.com/FidelVillaRod/opencode-omarchy-plugin --enable
 
-# 2. Instala los scripts auxiliares (el panel los invoca por nombre)
+# 2. Install the helper scripts (the panel calls them by name)
 install -m755 ~/.config/omarchy/plugins/opencode.core/bin/omarchy-opencode-* ~/.local/bin/
 
-# 3. Reinicia el shell para aplicarlo
+# 3. Restart the shell to apply it
 omarchy restart shell
 ```
 
-Instalación manual (clonando el repo):
+Manual install (cloning the repo):
 
 ```bash
 git clone https://github.com/FidelVillaRod/opencode-omarchy-plugin
@@ -40,58 +50,61 @@ install -m755 opencode-omarchy-plugin/bin/omarchy-opencode-* ~/.local/bin/
 omarchy restart shell
 ```
 
-> Nota: los programas `omarchy-opencode-*` deben quedarse en `~/.local/bin/` (o en el PATH), porque el panel los invoca por nombre.
+> Note: the `omarchy-opencode-*` programs must stay in `~/.local/bin/` (or on
+> the PATH), because the panel invokes them by name.
 
-## Configuración
+## Configuration
 
-El widget expone dos opciones ajustables desde el editor de la barra:
+The widget exposes two options tunable from the bar editor:
 
-| Opción | Tipo | Default | Descripción |
+| Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `refreshIntervalSec` | entero | 300 | Intervalo de refresco del panel (30–3600 s) |
-| `maxSessions` | entero | 20 | Número máximo de sesiones a mostrar (5–50) |
+| `refreshIntervalSec` | integer | 300 | Panel refresh interval (30–3600 s) |
+| `maxSessions` | integer | 20 | Maximum sessions to show (5–50) |
 
-## Uso
+## Usage
 
-- Clic en una sesión → la abre en el escritorio activo y cierra el panel.
-- El icono `+` → nueva sesión con el modelo seleccionado.
-- El selector de modelo persiste la última selección.
-- Los iconos de acción **aparecen al pasar el cursor** por una sesión (o al
-  seleccionarla con el teclado):
-  - Icono de **descarga** → exporta la conversación a `~/Descargas/opencode/`
-    (Markdown + JSON) y abre la carpeta.
-  - Icono de **papelera** → elimina la sesión. Si está abierta, avisa
-    que está en uso y permite cerrarla y eliminarla; si está cerrada, solo confirma.
-- **Navegación por teclado** (con el panel enfocado):
-  - `↑`/`↓` o `k`/`j` → mover el cursor entre sesiones y los controles de la
-    cabecera (el botón `+` está arriba y el selector de modelo debajo).
-  - `→`/`←` o `l`/`h` → enfocar los iconos de una sesión (exportar/eliminar).
-  - `Enter` → activar (reanudar la sesión, ejecutar la acción, abrir el selector
-    de modelo o crear una sesión nueva).
-  - Dentro del selector de modelo: `Enter`/`↓` abre, `j`/`k` eligen, `Enter` confirma
-    y cierra la lista.
-  - `d` o `Supr` → abrir el diálogo de eliminación de la sesión seleccionada.
-  - En el diálogo de confirmación: `←`/`→` o `Tab` eligen (Cancelar/Eliminar),
-    `Enter` confirma, `Esc` cancela.
-  - `r` → refrescar los datos; `Esc` → cerrar el panel.
-- Al eliminar una sesión, su fila muestra **"Eliminando…"** hasta que la
-  conversación desaparece de la lista.
+- Click a session → opens it on the active workspace and closes the panel.
+- The `+` icon → new session with the selected model.
+- The folder icon → opens the exports folder.
+- The model selector persists the last selection.
+- The action icons **appear on hover** over a session (or on keyboard
+  selection):
+  - **Download** icon → exports the conversation to the downloads folder's
+    `opencode` subdirectory (Markdown + JSON) and opens that folder.
+  - **Trash** icon → deletes the session. If it is open, it warns that it is
+    in use and lets you close and delete it; if closed, it only asks to confirm.
+- **Keyboard navigation** (with the panel focused):
+  - `↑`/`↓` or `k`/`j` → move the cursor between sessions and the header
+    controls (folder button on top, then `+`, then the model dropdown).
+  - `→`/`←` or `l`/`h` → focus a session's icons (export/delete).
+  - `Enter` → activate (resume the session, run an action, open the model
+    dropdown, or start a new session / open the exports folder).
+  - Inside the model dropdown: `Enter`/`↓` opens, `j`/`k` choose, `Enter` confirms
+    and closes the list.
+  - `d` or `Del` → open the delete dialog for the selected session.
+  - In the confirmation dialog: `←`/`→` or `Tab` choose (Cancel/Delete),
+    `Enter` confirms, `Esc` cancels.
+  - `r` → refresh data; `Esc` → close the panel.
+- When deleting a session, its row shows **"Deleting…"** until the
+  conversation disappears from the list.
 
-## Estructura
+## Structure
 
 ```
 opencode.core/
-├── manifest.json        # Metadatos y schema del widget para Omarchy
-├── Panel.qml            # Interfaz del panel y lógica QML (incluye ConfirmDialog)
-├── collector.py         # Recopila sesiones, modelos y estadísticas desde opencode.db/CLI
+├── manifest.json        # Metadata and widget schema for Omarchy
+├── Panel.qml            # Panel UI and QML logic (includes ConfirmDialog)
+├── collector.py         # Collects sessions, models and stats from opencode.db/CLI
 └── bin/
-    ├── omarchy-opencode-resume   # Reanuda una sesión en el escritorio activo
-    ├── omarchy-opencode-new      # Abre una sesión nueva (con modelo opcional)
-    ├── omarchy-opencode-check    # Indica si una sesión está abierta o cerrada
-    ├── omarchy-opencode-delete   # Cierra (si aplica) y elimina una sesión
-    └── omarchy-opencode-export   # Exporta la conversación en Markdown/JSON y abre la carpeta
+    ├── omarchy-opencode-resume   # Resumes a session on the active workspace
+    ├── omarchy-opencode-new      # Opens a new session (with optional model)
+    ├── omarchy-opencode-check    # Reports whether a session is open or closed
+    ├── omarchy-opencode-delete   # Closes (if applicable) and deletes a session
+    ├── omarchy-opencode-export   # Exports the conversation to Markdown/JSON and opens the folder
+    └── omarchy-opencode-exports  # Opens the exports folder
 ```
 
-## Licencia
+## License
 
 MIT

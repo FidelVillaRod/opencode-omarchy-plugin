@@ -68,8 +68,8 @@ Panel {
           var data = JSON.parse(line)
           if (data.ok) {
             root.sessions = data.sessions || []
-            // "Eliminando…" se mantiene hasta que la sesión realmente
-            // desaparezca de la lista.
+            // "Deleting…" is kept until the session actually disappears
+            // from the list.
             if (root.deletingId) {
               var stillThere = false
               var list = root.sessions
@@ -105,11 +105,11 @@ Panel {
         var title = root.pendingDeleteTitle || "Untitled"
         if (state === "open") {
           root.deleteDialogOpenMessage = true
-          root.deleteDialogMessage = "La sesión \"" + title + "\" está en uso." +
-            " ¿Seguro que quieres cerrarla y eliminarla?"
+          root.deleteDialogMessage = "The session \"" + title + "\" is in use." +
+            " Are you sure you want to close and delete it?"
         } else {
           root.deleteDialogOpenMessage = false
-          root.deleteDialogMessage = "¿Eliminar la sesión \"" + title + "\"?"
+          root.deleteDialogMessage = "Delete the session \"" + title + "\"?"
         }
         root.deleteDialogChecked = true
       }
@@ -161,6 +161,11 @@ Panel {
     root.close()
   }
 
+  function openExportsFolder() {
+    if (!root.bar || !root.bar.run) return
+    root.bar.run("omarchy-opencode-exports")
+  }
+
   function resumeSession(id) {
     if (!root.bar || !root.bar.run) return
     root.bar.run("omarchy-opencode-resume " + Util.shellQuote(id))
@@ -173,7 +178,7 @@ Panel {
     root.deleteDialogOpen = true
     root.deleteDialogChecked = false
     root.deleteDialogOpenMessage = false
-    root.deleteDialogMessage = "Comprobando estado de la sesión..."
+    root.deleteDialogMessage = "Checking session state..."
     checker.running = true
   }
 
@@ -210,25 +215,27 @@ Panel {
     root.keyboardNavigation = true
     if (!root.cursorActive) {
       root.cursorActive = true
-      // Cabecera: 1 = botón "+", 0 = selector de modelo.
+      // Header: 2 = exports folder button (top), 1 = "+" button, 0 = model dropdown.
       root.headerSubIndex = 1
       root.selectedIndex = -1
       root.actionColumn = 0
       return
     }
-    // Cabecera (botón "+" arriba, selector abajo).
+    // Header (folder button on top, then "+", then model dropdown at the bottom).
     if (root.selectedIndex === -1) {
       if (delta < 0) {
-        // Subir del selector al botón "+".
+        // Move up: dropdown → "+" → folder.
         if (root.headerSubIndex === 0) root.headerSubIndex = 1
+        else if (root.headerSubIndex === 1) root.headerSubIndex = 2
       } else {
-        // Bajar: del "+" al selector, y del selector a la primera sesión.
-        if (root.headerSubIndex === 1) root.headerSubIndex = 0
+        // Move down: folder → "+" → dropdown → first session.
+        if (root.headerSubIndex === 2) root.headerSubIndex = 1
+        else if (root.headerSubIndex === 1) root.headerSubIndex = 0
         else { root.selectedIndex = sessionCount() > 0 ? 0 : -1; root.actionColumn = 0; root.headerSubIndex = 0 }
       }
       return
     }
-    // Primera sesión hacia arriba → selector de modelo.
+    // First session moving up → model dropdown.
     if (delta < 0 && root.selectedIndex === 0) {
       root.selectedIndex = -1
       root.headerSubIndex = 0
@@ -253,7 +260,9 @@ Panel {
     if (!root.cursorActive) return
     root.keyboardNavigation = true
     if (root.selectedIndex === -1) {
-      if (root.headerSubIndex === 1) {
+      if (root.headerSubIndex === 2) {
+        root.openExportsFolder()
+      } else if (root.headerSubIndex === 1) {
         root.openNewSession()
       } else {
         modelDropdown.forceActiveFocus()
@@ -338,12 +347,39 @@ Panel {
 
         Text {
           width: parent.width
-          text: root.todaySessions + " sesiones hoy · " + root.formatTokens(root.todayTokens) + " tokens" +
+          text: root.todaySessions + " sessions today · " + root.formatTokens(root.todayTokens) + " tokens" +
                 (root.todayCost > 0 ? " · $" + root.todayCost.toFixed(2) : "")
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
           color: Qt.darker(root.foreground, 1.5)
           elide: Text.ElideRight
+        }
+
+        Item {
+          width: parent.width
+          height: Style.space(24)
+
+          PanelActionButton {
+            id: folderButton
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            iconText: "\uf07b"
+            tooltipText: "Open exports folder"
+            foreground: root.foreground
+            hoverColor: Color.urgent
+            fontFamily: root.fontFamily
+            hasCursor: root.selectedIndex === -1 && root.headerSubIndex === 2
+            onHovered: function(on) {
+              if (on) {
+                root.keyboardNavigation = false
+                root.cursorActive = true
+                root.selectedIndex = -1
+                root.headerSubIndex = 2
+                root.actionColumn = 0
+              }
+            }
+            onClicked: root.openExportsFolder()
+          }
         }
 
         Row {
@@ -354,7 +390,7 @@ Panel {
           Dropdown {
             id: modelDropdown
             width: parent.width - newButton.width - parent.spacing
-            label: "Modelo"
+            label: "Model"
             options: {
               var opts = []
               for (var i = 0; i < root.availableModels.length; i++) {
@@ -369,8 +405,8 @@ Panel {
             onPopupOpenChanged: if (!popupOpen) Qt.callLater(function() { keyCatcher.forceActiveFocus() })
             onChanged: function(v) {
               root.selectedModel = v
-              // Al elegir con el teclado dentro del desplegable, devolver el
-              // foco al catcher para que el cursor del panel siga navegando.
+              // Returning focus to the catcher after picking from the keyboard
+              // keeps the panel cursor navigating.
               Qt.callLater(function() { keyCatcher.forceActiveFocus() })
             }
             hasCursor: root.selectedIndex === -1 && root.headerSubIndex === 0
@@ -388,7 +424,7 @@ Panel {
           PanelActionButton {
             id: newButton
             iconText: ""
-            tooltipText: "Nueva sesión" + (root.selectedModel ? " (" + (root.selectedModel.split("/").pop()) + ")" : "")
+            tooltipText: "New session" + (root.selectedModel ? " (" + (root.selectedModel.split("/").pop()) + ")" : "")
             foreground: root.foreground
             hoverColor: Color.urgent
             fontFamily: root.fontFamily
@@ -427,18 +463,28 @@ Panel {
               : Color.popups.background
             currentFill: Style.selectedFillFor(root.foreground, Color.accent)
             hasCursor: root.cursorActive && root.selectedIndex === index &&
-              (root.keyboardNavigation || rowMouse.containsMouse || root.mouseActionHoverIndex === index) &&
+              (root.keyboardNavigation || rowHover.hovered) &&
               root.actionColumn === 0
 
-            readonly property bool showActions: rowMouse.containsMouse ||
+            readonly property bool showActions: rowHover.hovered ||
               (root.keyboardNavigation && root.cursorActive && root.selectedIndex === index)
 
-            // Espacio que siempre reservan los iconos de acción (exportar + eliminar).
+            // Space always reserved by the action icons (export + delete).
             readonly property real actionWidth: Style.space(24) * 2 + Style.space(1)
 
+            // Tracks the pointer over the WHOLE row (text + icons) in a stable
+            // way, coexisting with the buttons' child MouseAreas.
+            HoverHandler {
+              id: rowHover
+              target: row
+            }
+
+            // Resume-only: excludes the icon zone so a click on a button can
+            // never reach the row and resume the conversation.
             MouseArea {
               id: rowMouse
               anchors.fill: parent
+              anchors.rightMargin: row.actionWidth + Style.space(4)
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               onContainsMouseChanged: function(on) {
@@ -481,7 +527,7 @@ Panel {
                 Text {
                   width: parent.width
                   text: modelData.id === root.deletingId
-                    ? "Eliminando…"
+                    ? "Deleting…"
                     : (modelData.model || "") + " · " + root.formatTokens(modelData.total_tokens) + " tokens"
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
@@ -499,7 +545,7 @@ Panel {
 
                 PanelActionButton {
                   iconText: "\uf019"
-                  tooltipText: "Exportar conversación"
+                  tooltipText: "Export conversation"
                   foreground: root.foreground
                   fontFamily: root.fontFamily
                   size: Style.space(24)
@@ -513,7 +559,7 @@ Panel {
 
                 PanelActionButton {
                   iconText: "\uf1f8"
-                  tooltipText: "Eliminar sesión"
+                  tooltipText: "Delete session"
                   foreground: root.foreground
                   hoverColor: Color.urgent
                   fontFamily: root.fontFamily
@@ -532,7 +578,7 @@ Panel {
 
         Text {
           visible: root.sessions.length === 0
-          text: root.reachable ? "No sessions found" : "OpenCode no disponible"
+          text: root.reachable ? "No sessions found" : "OpenCode unavailable"
           font.family: root.fontFamily
           font.pixelSize: Style.font.body
           color: Qt.darker(root.foreground, 1.5)
@@ -548,9 +594,9 @@ Panel {
       z: 30
       message: root.deleteDialogMessage
       confirmText: root.deleteDialogChecked
-        ? (root.deleteDialogOpenMessage ? "Cerrar y eliminar" : "Eliminar")
-        : "Eliminar"
-      cancelText: "Cancelar"
+        ? (root.deleteDialogOpenMessage ? "Close and delete" : "Delete")
+        : "Delete"
+      cancelText: "Cancel"
       foreground: root.foreground
       background: Color.popups.background
       scrim: Qt.rgba(0, 0, 0, 0.55)

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Export an opencode session conversation to ~/Descargas/opencode as a readable
-# Markdown (plus the raw JSON), then open that folder.
+# Export an opencode session conversation to the downloads folder's "opencode"
+# subdirectory as a readable Markdown (plus the raw JSON), then open that folder.
 # Usage: omarchy-opencode-export <session-id>
 set -euo pipefail
 
@@ -50,14 +50,14 @@ model = info.get('model') or {}
 
 lines = []
 lines.append(f"# {title}\n")
-lines.append(f"- **Modelo:** {model.get('providerID')}/{model.get('id')}")
-lines.append(f"- **Sesión:** {info.get('id')}")
-lines.append(f"- **Directorio:** {info.get('directory')}")
+lines.append(f"- **Model:** {model.get('providerID')}/{model.get('id')}")
+lines.append(f"- **Session:** {info.get('id')}")
+lines.append(f"- **Directory:** {info.get('directory')}")
 lines.append("- **Tokens:** {:,} in / {:,} out".format(
     info.get('tokens', {}).get('input', 0),
     info.get('tokens', {}).get('output', 0)))
 if info.get('cost'):
-    lines.append(f"- **Costo:** ${info['cost']:.4f}")
+    lines.append(f"- **Cost:** ${info['cost']:.4f}")
 lines.append("")
 
 for msg in d.get('messages', []):
@@ -73,11 +73,11 @@ for msg in d.get('messages', []):
     if not body:
         continue
     if role == 'user':
-        lines.append("### Usuario\n")
+        lines.append("### User\n")
         lines.append(body)
         lines.append("")
     else:
-        lines.append("### Asistente\n")
+        lines.append("### Assistant\n")
         lines.append(body)
         lines.append("")
 
