@@ -1,0 +1,39 @@
+#!/bin/bash
+# Delete an opencode session. If the session is currently open (a live opencode
+# process targets it), close that session/tab first, then remove it.
+# Usage: omarchy-opencode-delete <session-id>
+set -euo pipefail
+
+SESSION_ID=${1:?usage: omarchy-opencode-delete <session-id>}
+
+# Only allow safe session ids.
+[[ $SESSION_ID =~ ^[A-Za-z0-9._-]+$ ]] || {
+  echo "invalid session id" >&2
+  exit 1
+}
+
+# 1. Close the session if it is open: kill the opencode process carrying `-s <id>`
+#    and the org.omarchy.agent kitty window that hosts it, so the DB row is not
+#    left pointing at a live runtime.
+OPEN_PID=$(pgrep -af opencode 2>/dev/null | grep -F -- "-s $SESSION_ID" | awk '{print $1}' || true)
+if [[ -n $OPEN_PID ]]; then
+  # Kill the dedicated opencode process first.
+  kill "$OPEN_PID" 2>/dev/null || true
+  # Give it a moment to exit and clean up after itself.
+  sleep 0.4
+fi
+
+# 2. Remove the session with opencode's own command (safest: it knows the schema).
+if command -v opencode >/dev/null 2>&1 && timeout 20 opencode session delete "$SESSION_ID" >/dev/null 2>&1; then
+  echo "deleted"
+  exit 0
+fi
+
+# 3. Fallback via the opencode process used by the agent wrapper (mise shim).
+if [[ -x "$HOME/.local/bin/opencode" ]] && timeout 20 "$HOME/.local/bin/opencode" session delete "$SESSION_ID" >/dev/null 2>&1; then
+  echo "deleted"
+  exit 0
+fi
+
+echo "failed to delete" >&2
+exit 1

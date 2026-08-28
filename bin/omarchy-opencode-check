@@ -1,0 +1,23 @@
+#!/bin/bash
+# Report whether an opencode session is currently open (in use by a running
+# opencode process) or closed.
+# Usage: omarchy-opencode-check <session-id>
+# Output: "open" or "closed" (exit 0 in both cases; nonzero on invalid usage).
+set -euo pipefail
+
+SESSION_ID=${1:?usage: omarchy-opencode-check <session-id>}
+
+# Only allow safe session ids (UUID / alphanumeric slug).
+[[ $SESSION_ID =~ ^[A-Za-z0-9._-]+$ ]] || {
+  echo "invalid session id" >&2
+  exit 1
+}
+
+# A session is "open" when a live opencode process carries `-s <id>` (or the
+# resume wrapper that targets it). Match the full id to avoid false positives.
+if pgrep -af opencode 2>/dev/null | grep -F -- "-s $SESSION_ID" | grep -qv "grep"; then
+  echo "open"
+else
+  echo "closed"
+fi
+exit 0

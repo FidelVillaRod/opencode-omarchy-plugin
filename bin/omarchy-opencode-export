@@ -1,0 +1,94 @@
+#!/bin/bash
+# Export an opencode session conversation to ~/Descargas/opencode as a readable
+# Markdown (plus the raw JSON), then open that folder.
+# Usage: omarchy-opencode-export <session-id>
+set -euo pipefail
+
+SESSION_ID=${1:?usage: omarchy-opencode-export <session-id>}
+
+# Only allow safe session ids.
+[[ $SESSION_ID =~ ^[A-Za-z0-9._-]+$ ]] || {
+  echo "invalid session id" >&2
+  exit 1
+}
+
+OUT_DIR="${XDG_DOWNLOAD_DIR:-$HOME/Descargas}/opencode"
+mkdir -p "$OUT_DIR"
+
+# Export to a temp JSON first (opencode export writes to stdout).
+TMP_JSON=$(mktemp --suffix=.json)
+if ! timeout 30 opencode export "$SESSION_ID" > "$TMP_JSON" 2>/dev/null; then
+  echo "failed to export session" >&2
+  rm -f "$TMP_JSON"
+  exit 1
+fi
+
+SLUG=$(python3 -c "
+import json
+try:
+    d=json.load(open('$TMP_JSON'))
+    print(d.get('info',{}).get('slug','session'))
+except Exception:
+    print('session')
+")
+
+STAMP=$(date +%Y%m%d-%H%M%S)
+BASE="$OUT_DIR/${SLUG}_${STAMP}"
+
+# Keep the raw JSON too.
+cp "$TMP_JSON" "$BASE.json"
+
+# Build a readable Markdown from the message parts.
+python3 - "$TMP_JSON" "$BASE.md" <<'PYEOF'
+import json, sys
+
+src, dst = sys.argv[1], sys.argv[2]
+d = json.load(open(src))
+info = d.get('info', {})
+title = info.get('title') or 'Untitled'
+model = info.get('model') or {}
+
+lines = []
+lines.append(f"# {title}\n")
+lines.append(f"- **Modelo:** {model.get('providerID')}/{model.get('id')}")
+lines.append(f"- **Sesión:** {info.get('id')}")
+lines.append(f"- **Directorio:** {info.get('directory')}")
+lines.append("- **Tokens:** {:,} in / {:,} out".format(
+    info.get('tokens', {}).get('input', 0),
+    info.get('tokens', {}).get('output', 0)))
+if info.get('cost'):
+    lines.append(f"- **Costo:** ${info['cost']:.4f}")
+lines.append("")
+
+for msg in d.get('messages', []):
+    parts = msg.get('parts') or []
+    # A message with a step-start is an assistant turn; otherwise it's user text.
+    has_step = any(p.get('type') == 'step-start' for p in parts)
+    role = 'assistant' if has_step else 'user'
+    text_parts = []
+    for p in parts:
+        if p.get('type') == 'text' and p.get('text'):
+            text_parts.append(p['text'].strip())
+    body = "\n\n".join(text_parts).strip()
+    if not body:
+        continue
+    if role == 'user':
+        lines.append("### Usuario\n")
+        lines.append(body)
+        lines.append("")
+    else:
+        lines.append("### Asistente\n")
+        lines.append(body)
+        lines.append("")
+
+open(dst, 'w').write("\n".join(lines) + "\n")
+PYEOF
+
+rm -f "$TMP_JSON"
+
+echo "exported: $BASE.md"
+echo "opened: $OUT_DIR"
+
+# Open the folder in the default file manager.
+xdg-open "$OUT_DIR" >/dev/null 2>&1 || \
+  hyprctl dispatch 'hl.dsp.exec_cmd("xdg-open '"$OUT_DIR"'")' >/dev/null 2>&1 || true

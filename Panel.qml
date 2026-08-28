@@ -23,6 +23,12 @@ Panel {
   property int todaySessions: 0
   property int todayTokens: 0
   property real todayCost: 0
+  property string pendingDeleteId: ""
+  property string pendingDeleteTitle: ""
+  property bool deleteDialogOpen: false
+  property string deleteDialogMessage: ""
+  property bool deleteDialogChecked: false
+  property bool deleteDialogOpenMessage: false
 
   readonly property int barContentWidth: Style.bar.iconFont + Style.space(5)
   readonly property int barSlot: barContentWidth + Style.space(10)
@@ -70,6 +76,26 @@ Panel {
     }
   }
 
+  Process {
+    id: checker
+    command: ["omarchy-opencode-check", root.pendingDeleteId]
+    stdout: SplitParser {
+      onRead: function(line) {
+        var state = String(line || "").trim()
+        var title = root.pendingDeleteTitle || "Untitled"
+        if (state === "open") {
+          root.deleteDialogOpenMessage = true
+          root.deleteDialogMessage = "La sesión \"" + title + "\" está en uso." +
+            " ¿Seguro que quieres cerrarla y eliminarla?"
+        } else {
+          root.deleteDialogOpenMessage = false
+          root.deleteDialogMessage = "¿Eliminar la sesión \"" + title + "\"?"
+        }
+        root.deleteDialogChecked = true
+      }
+    }
+  }
+
   Timer {
     id: refreshTimer
     interval: 300000
@@ -113,6 +139,36 @@ Panel {
     if (!root.bar || !root.bar.run) return
     root.bar.run("omarchy-opencode-resume " + Util.shellQuote(id))
     root.close()
+  }
+
+  function confirmDelete(id, title) {
+    root.pendingDeleteId = id
+    root.pendingDeleteTitle = title || "Untitled"
+    root.deleteDialogOpen = true
+    root.deleteDialogChecked = false
+    root.deleteDialogOpenMessage = false
+    root.deleteDialogMessage = "Comprobando estado de la sesión..."
+    checker.running = true
+  }
+
+  function cancelDelete() {
+    root.pendingDeleteId = ""
+    root.deleteDialogOpen = false
+  }
+
+  function runDelete() {
+    if (root.bar && root.bar.run) {
+      root.bar.run("omarchy-opencode-delete " + Util.shellQuote(root.pendingDeleteId))
+    }
+    root.pendingDeleteId = ""
+    root.deleteDialogOpen = false
+    root.refreshData()
+  }
+
+  function exportSession(id) {
+    if (root.bar && root.bar.run) {
+      root.bar.run("omarchy-opencode-export " + Util.shellQuote(id))
+    }
   }
 
   KeyboardPanel {
@@ -207,6 +263,7 @@ Panel {
               id: sessionCol
               anchors.fill: parent
               anchors.margins: Style.space(4)
+              anchors.rightMargin: Style.space(4) + actionRow.width
               spacing: Style.space(2)
 
               Text {
@@ -233,6 +290,34 @@ Panel {
                 root.resumeSession(modelData.id)
               }
             }
+
+            Row {
+              id: actionRow
+              z: 10
+              anchors.right: parent.right
+              anchors.rightMargin: Style.space(4)
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.space(2)
+
+              PanelActionButton {
+                iconText: "\ueb3b"
+                tooltipText: "Exportar conversación"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                size: Style.space(24)
+                onClicked: root.exportSession(modelData.id)
+              }
+
+              PanelActionButton {
+                iconText: "\uf1f8"
+                tooltipText: "Eliminar sesión"
+                foreground: root.foreground
+                hoverColor: Color.urgent
+                fontFamily: root.fontFamily
+                size: Style.space(24)
+                onClicked: root.confirmDelete(modelData.id, modelData.title)
+              }
+            }
           }
         }
 
@@ -244,6 +329,25 @@ Panel {
           color: Qt.darker(root.foreground, 1.5)
           anchors.horizontalCenter: parent.horizontalCenter
         }
+      }
+    }
+
+    ConfirmDialog {
+      id: deleteConfirm
+      anchors.fill: parent
+      opened: root.deleteDialogOpen
+      z: 10
+      message: root.deleteDialogMessage
+      confirmText: root.deleteDialogChecked
+        ? (root.deleteDialogOpenMessage ? "Cerrar y eliminar" : "Eliminar")
+        : "Eliminar"
+      cancelText: "Cancelar"
+      foreground: root.foreground
+      background: Color.popups.background
+      fontFamily: root.fontFamily
+      onCanceled: root.cancelDelete()
+      onConfirmed: {
+        if (root.deleteDialogChecked) root.runDelete()
       }
     }
   }

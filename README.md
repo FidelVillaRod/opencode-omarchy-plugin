@@ -24,9 +24,8 @@ Con `omarchy plugin add` (recomendado):
 # 1. Instala el plugin desde git
 omarchy plugin add https://github.com/FidelVillaRod/opencode-omarchy-plugin --enable
 
-# 2. Instala los scripts auxiliares (el plugin los invoca por nombre)
-install -m755 ~/.config/omarchy/plugins/opencode.core/bin/omarchy-opencode-resume ~/.local/bin/
-install -m755 ~/.config/omarchy/plugins/opencode.core/bin/omarchy-opencode-new ~/.local/bin/
+# 2. Instala los scripts auxiliares (el panel los invoca por nombre)
+install -m755 ~/.config/omarchy/plugins/opencode.core/bin/omarchy-opencode-* ~/.local/bin/
 
 # 3. Reinicia el shell para aplicarlo
 omarchy restart shell
@@ -37,12 +36,11 @@ Instalación manual (clonando el repo):
 ```bash
 git clone https://github.com/FidelVillaRod/opencode-omarchy-plugin
 cp -r opencode-omarchy-plugin ~/.config/omarchy/plugins/opencode.core
-install -m755 opencode-omarchy-plugin/bin/omarchy-opencode-resume ~/.local/bin/
-install -m755 opencode-omarchy-plugin/bin/omarchy-opencode-new ~/.local/bin/
+install -m755 opencode-omarchy-plugin/bin/omarchy-opencode-* ~/.local/bin/
 omarchy restart shell
 ```
 
-> Nota: los programas `omarchy-opencode-resume` y `omarchy-opencode-new` deben quedarse en `~/.local/bin/` (o en el PATH), porque el panel los invoca por nombre.
+> Nota: los programas `omarchy-opencode-*` deben quedarse en `~/.local/bin/` (o en el PATH), porque el panel los invoca por nombre.
 
 ## Configuración
 
@@ -58,17 +56,24 @@ El widget expone dos opciones ajustables desde el editor de la barra:
 - Clic en una sesión → la abre en el escritorio activo y cierra el panel.
 - El icono `+` → nueva sesión con el modelo seleccionado.
 - El selector de modelo persiste la última selección.
+- Icono de **descarga** en una sesión → exporta la conversación a `~/Descargas/opencode/`
+  (Markdown + JSON) y abre la carpeta.
+- Icono de **papelera** en una sesión → elimina la sesión. Si está abierta, avisa
+  que está en uso y permite cerrarla y eliminarla; si está cerrada, solo confirma.
 
 ## Estructura
 
 ```
 opencode.core/
 ├── manifest.json        # Metadatos y schema del widget para Omarchy
-├── Panel.qml            # Interfaz del panel y lógica QML
+├── Panel.qml            # Interfaz del panel y lógica QML (incluye ConfirmDialog)
 ├── collector.py         # Recopila sesiones, modelos y estadísticas desde opencode.db/CLI
 └── bin/
     ├── omarchy-opencode-resume   # Reanuda una sesión en el escritorio activo
-    └── omarchy-opencode-new      # Abre una sesión nueva (con modelo opcional)
+    ├── omarchy-opencode-new      # Abre una sesión nueva (con modelo opcional)
+    ├── omarchy-opencode-check    # Indica si una sesión está abierta o cerrada
+    ├── omarchy-opencode-delete   # Cierra (si aplica) y elimina una sesión
+    └── omarchy-opencode-export   # Exporta la conversación en Markdown/JSON y abre la carpeta
 ```
 
 ## Licencia
