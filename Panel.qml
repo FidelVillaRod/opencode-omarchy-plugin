@@ -7,7 +7,7 @@ import qs.Commons
 
 Panel {
   id: root
-  moduleName: "fidelv.opencode"
+  moduleName: "opencode.core"
   ipcTarget: ""
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground
@@ -30,7 +30,7 @@ Panel {
   implicitHeight: bar && bar.vertical ? barSlot : (bar ? bar.barSize : Style.bar.sizeHorizontal)
 
   IpcHandler {
-    target: "fidelv.opencode"
+    target: "opencode.core"
     function open() { root.open() }
     function close() { root.close() }
     function show() { root.open() }

@@ -18,20 +18,31 @@ Native Omarchy bar panel para gestionar sesiones de [OpenCode](https://opencode.
 
 ## Instalación
 
+Con `omarchy plugin add` (recomendado):
+
 ```bash
-# 1. Copia el plugin a la carpeta de plugins de Omarchy
-cp -r fidelv.opencode ~/.config/omarchy/plugins/
+# 1. Instala el plugin desde git
+omarchy plugin add https://github.com/FidelVillaRod/opencode-omarchy-plugin --enable
 
-# 2. Instala los scripts auxiliares
-install -m755 bin/omarchy-opencode-resume ~/.local/bin/
-install -m755 bin/omarchy-opencode-new ~/.local/bin/
+# 2. Instala los scripts auxiliares (el plugin los invoca por nombre)
+install -m755 ~/.config/omarchy/plugins/opencode.core/bin/omarchy-opencode-resume ~/.local/bin/
+install -m755 ~/.config/omarchy/plugins/opencode.core/bin/omarchy-opencode-new ~/.local/bin/
 
-# 3. Añade el widget al bar layout en ~/.config/omarchy/shell.json (plugins[]) y
-#    colócalo en bar.layout.* si quieres que aparezca en la barra.
-
-# 4. Reinicia el shell para aplicarlo
+# 3. Reinicia el shell para aplicarlo
 omarchy restart shell
 ```
+
+Instalación manual (clonando el repo):
+
+```bash
+git clone https://github.com/FidelVillaRod/opencode-omarchy-plugin
+cp -r opencode-omarchy-plugin ~/.config/omarchy/plugins/opencode.core
+install -m755 opencode-omarchy-plugin/bin/omarchy-opencode-resume ~/.local/bin/
+install -m755 opencode-omarchy-plugin/bin/omarchy-opencode-new ~/.local/bin/
+omarchy restart shell
+```
+
+> Nota: los programas `omarchy-opencode-resume` y `omarchy-opencode-new` deben quedarse en `~/.local/bin/` (o en el PATH), porque el panel los invoca por nombre.
 
 ## Configuración
 
@@ -51,7 +62,7 @@ El widget expone dos opciones ajustables desde el editor de la barra:
 ## Estructura
 
 ```
-fidelv.opencode/
+opencode.core/
 ├── manifest.json        # Metadatos y schema del widget para Omarchy
 ├── Panel.qml            # Interfaz del panel y lógica QML
 ├── collector.py         # Recopila sesiones, modelos y estadísticas desde opencode.db/CLI
