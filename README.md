@@ -112,6 +112,9 @@ opencode.core/
     └── omarchy-opencode-exports  # Opens the exports folder
 ```
 
+For maintainers: see [docs/TECHNICAL.md](docs/TECHNICAL.md) for the tech
+reference, QML mechanics, and security notes.
+
 ## License
 
 MIT
