@@ -250,7 +250,7 @@ Panel {
   }
 
   function activateCursor() {
-    if (!root.cursorActive || root.selectedIndex < 0) return
+    if (!root.cursorActive) return
     root.keyboardNavigation = true
     if (root.selectedIndex === -1) {
       if (root.headerSubIndex === 1) {
@@ -431,7 +431,6 @@ Panel {
               root.actionColumn === 0
 
             readonly property bool showActions: rowMouse.containsMouse ||
-              root.mouseActionHoverIndex === index ||
               (root.keyboardNavigation && root.cursorActive && root.selectedIndex === index)
 
             // Espacio que siempre reservan los iconos de acción (exportar + eliminar).
@@ -440,7 +439,6 @@ Panel {
             MouseArea {
               id: rowMouse
               anchors.fill: parent
-              anchors.rightMargin: row.actionWidth + Style.space(4)
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               onContainsMouseChanged: function(on) {
@@ -449,8 +447,6 @@ Panel {
                   root.cursorActive = true
                   root.selectedIndex = index
                   root.actionColumn = 0
-                } else {
-                  root.mouseActionHoverIndex = -1
                 }
               }
               onClicked: {
@@ -509,7 +505,6 @@ Panel {
                   size: Style.space(24)
                   hasCursor: root.cursorActive && root.selectedIndex === index && root.actionColumn === 1
                   onHovered: function(on) {
-                    root.mouseActionHoverIndex = on ? index : -1
                     if (on) { root.keyboardNavigation = false; root.cursorActive = true; root.selectedIndex = index; root.actionColumn = 1 }
                     else if (rowMouse.containsMouse) root.actionColumn = 0
                   }
@@ -525,7 +520,6 @@ Panel {
                   size: Style.space(24)
                   hasCursor: root.cursorActive && root.selectedIndex === index && root.actionColumn === 2
                   onHovered: function(on) {
-                    root.mouseActionHoverIndex = on ? index : -1
                     if (on) { root.keyboardNavigation = false; root.cursorActive = true; root.selectedIndex = index; root.actionColumn = 2 }
                     else if (rowMouse.containsMouse) root.actionColumn = 0
                   }
@@ -551,7 +545,7 @@ Panel {
       id: deleteConfirm
       anchors.fill: parent
       opened: root.deleteDialogOpen
-      z: 10
+      z: 30
       message: root.deleteDialogMessage
       confirmText: root.deleteDialogChecked
         ? (root.deleteDialogOpenMessage ? "Cerrar y eliminar" : "Eliminar")
